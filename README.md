@@ -2,20 +2,26 @@
 
 DuckCall is a native Android calling app built with Kotlin and Jetpack Compose.
 
-## Current foundation
+## Cellular calling foundation
 
-- Dial pad with editable phone number
-- Cellular calling handoff through Android's system dialer (the user confirms the call there)
-- App navigation for Dialer, Recents, Contacts, and Settings
-- Initial VoIP entry point and a clean seam for adding a real calling provider
+DuckCall is being developed as a replacement default phone app using Android Telecom.
 
-## Calling modes
+Implemented in the current repository:
+- Dial pad registered for Android `ACTION_DIAL` intents, including `tel:` links
+- User-initiated request to become Android's default dialer through `RoleManager.ROLE_DIALER` on Android 10+ and the legacy default-dialer intent on older supported versions
+- `InCallService` registration and a Telecom-backed call state controller
+- Basic incoming-call and active-call UI
+- Basic answer, decline, hang-up, mute, speaker, hold, and resume controls
+- Incoming/ongoing call notification with a full-screen activity intent
+- Outgoing cellular calls submitted through `TelecomManager.placeCall` after DuckCall is selected as the default dialer
 
-### Cellular
-DuckCall opens the Android system dialer with the entered number. This avoids requesting the sensitive `CALL_PHONE` permission and lets the user review the number and place the call using their SIM.
+The user must approve the Android system prompt to make DuckCall the default phone app. Emergency calls continue to use the preinstalled system dialer according to Android's platform behavior.
 
-### Internet / VoIP
-A production VoIP implementation needs a provider or signaling backend, authentication, push notifications for incoming calls, and a media stack such as WebRTC. No provider credentials or backend have been supplied yet, so the current VoIP control is an honest setup placeholder rather than a simulated call.
+**Important:** This is an initial integration, not a production-ready phone app yet. It has not been compiled or tested on a physical device. Before relying on it for daily calls, the app still needs device testing and hardening for multiple simultaneous calls, Bluetooth and audio-route changes, DTMF, call waiting/conferencing, notification and full-screen-intent permission behavior, robust call history, accessibility, and OEM-specific behavior. Keep the preinstalled Phone app available as a fallback during testing.
+
+## Internet / VoIP
+
+VoIP development is paused by request. The existing signaling prototype and architecture notes remain in the repository but are not part of the current cellular implementation. They are not a working internet-calling service.
 
 ## Build
 
@@ -28,7 +34,8 @@ Open this repository in the latest stable Android Studio with Android SDK 35 ins
 
 ## Next steps
 
-1. Choose the VoIP provider / backend.
-2. Add account sign-in and contact integration.
-3. Add real outgoing and incoming VoIP calls, audio routing, and call notifications.
-4. Add persistent call history and automated tests.
+1. Compile and fix any Android/Gradle issues.
+2. Test the default-dialer role flow on a real Android phone.
+3. Exercise incoming, outgoing, declined, missed, held, and ended cellular calls.
+4. Add complete multi-call, audio routing, DTMF, and persistent call-history behavior.
+5. Add automated tests and accessibility/device compatibility checks.
