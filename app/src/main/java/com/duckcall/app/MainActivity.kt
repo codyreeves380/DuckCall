@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -68,6 +69,7 @@ private fun DuckCallApp() {
     var phoneNumber by rememberSaveable { mutableStateOf("") }
     var showVoipDialog by remember { mutableStateOf(false) }
     val recents = remember { mutableStateListOf<String>() }
+    val context = LocalContext.current
 
     MaterialTheme(
         colorScheme = lightColorScheme(
@@ -114,7 +116,7 @@ private fun DuckCallApp() {
                                 try {
                                     val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(phoneNumber)}"))
                                     // ACTION_DIAL opens the system phone app; the user confirms the call.
-                                    androidx.compose.ui.platform.LocalContext.current.startActivity(intent)
+                                    context.startActivity(intent)
                                 } catch (_: Exception) {
                                     // The dialer may not be available on some tablets or emulators.
                                 }
