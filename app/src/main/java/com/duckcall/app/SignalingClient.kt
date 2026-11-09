@@ -49,7 +49,7 @@ class SignalingClient(
                     val message = JSONObject(text)
                     val type = message.optString("type")
                     if (type == "connected") {
-                        listener.onConnected(message.optString("clientId").ifBlank { null })
+                        listener.onConnected(message.optString("clientId").takeIf { it.isNotBlank() })
                     } else {
                         listener.onEvent(type, message)
                     }
