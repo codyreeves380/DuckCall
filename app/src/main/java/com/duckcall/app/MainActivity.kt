@@ -1,13 +1,14 @@
 package com.duckcall.app
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.app.role.RoleManager
 import android.telecom.TelecomManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
-import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -64,6 +65,7 @@ private val Canvas = Color(0xFFF6F8F8)
 
 class MainActivity : ComponentActivity() {
     private var incomingDialNumber by mutableStateOf("")
+    private val notificationPermissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (isDefaultDialer()) {
             Toast.makeText(this, "DuckCall is now your default phone app", Toast.LENGTH_SHORT).show()
@@ -76,6 +78,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         incomingDialNumber = intent?.data?.schemeSpecificPart.orEmpty()
         setContent { DuckCallApp(initialNumber = incomingDialNumber, onRequestDefaultDialer = { requestDefaultDialer() }) }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionRequest.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -318,7 +325,7 @@ private fun RecentsScreen(recents: List<String>) {
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(number, fontWeight = FontWeight.SemiBold, color = Ink)
-                        Text("Outgoing · Cellular handoff", fontSize = 11.sp, color = Muted)
+                        Text("Outgoing · Cellular", fontSize = 11.sp, color = Muted)
                     }
                 }
                 Divider(color = Color(0xFFE9EEEE))
