@@ -1,6 +1,11 @@
 package com.duckcall.app
 
 import android.content.Intent
+import android.app.role.RoleManager
+import android.telecom.TelecomManager
+import android.os.Build
+import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -57,14 +62,45 @@ private val Muted = Color(0xFF718187)
 private val Canvas = Color(0xFFF6F8F8)
 
 class MainActivity : ComponentActivity() {
+    private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (isDefaultDialer()) {
+            Toast.makeText(this, "DuckCall is now your default phone app", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "DuckCall was not selected as the default phone app", Toast.LENGTH_LONG).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { DuckCallApp() }
+        setContent { DuckCallApp(onRequestDefaultDialer = { requestDefaultDialer() }) }
+    }
+
+    private fun isDefaultDialer(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_DIALER)
+        } else {
+            getSystemService(TelecomManager::class.java).defaultDialerPackage == packageName
+        }
+    }
+
+    private fun requestDefaultDialer() {
+        try {
+            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                getSystemService(RoleManager::class.java)
+                    .createRequestRoleIntent(RoleManager.ROLE_DIALER)
+            } else {
+                Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER)
+                    .putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName)
+            }
+            roleRequest.launch(intent)
+        } catch (_: Exception) {
+            Toast.makeText(this, "Android could not open the default phone app settings", Toast.LENGTH_LONG).show()
+        }
     }
 }
 
 @Composable
-private fun DuckCallApp() {
+private fun DuckCallApp(onRequestDefaultDialer: () -> Unit) {
     var selectedTab by rememberSaveable { mutableStateOf("Dialer") }
     var phoneNumber by rememberSaveable { mutableStateOf("") }
     var showVoipDialog by remember { mutableStateOf(false) }
@@ -112,13 +148,25 @@ private fun DuckCallApp() {
                         onNumberChange = { phoneNumber = it },
                         onCellularCall = {
                             if (phoneNumber.isNotBlank()) {
-                                recents.add(0, phoneNumber)
-                                try {
-                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(phoneNumber)}"))
-                                    // ACTION_DIAL opens the system phone app; the user confirms the call.
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {
-                                    // The dialer may not be available on some tablets or emulators.
+                                val roleManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) context.getSystemService(RoleManager::class.java) else null
+                                val isDefault = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                    roleManager?.isRoleHeld(RoleManager.ROLE_DIALER) == true
+                                } else {
+                                    (context.getSystemService(android.content.Context.TELECOM_SERVICE) as TelecomManager).defaultDialerPackage == context.packageName
+                                }
+                                if (!isDefault) {
+                                    onRequestDefaultDialer()
+                                } else {
+                                    try {
+                                        val telecom = context.getSystemService(android.content.Context.TELECOM_SERVICE) as TelecomManager
+                                        telecom.placeCall(
+                                            Uri.fromParts("tel", phoneNumber, null),
+                                            Bundle()
+                                        )
+                                        recents.add(0, phoneNumber)
+                                    } catch (_: Exception) {
+                                        Toast.makeText(context, "DuckCall could not place this call", Toast.LENGTH_LONG).show()
+                                    }
                                 }
                             }
                         },
@@ -126,7 +174,7 @@ private fun DuckCallApp() {
                     )
                     "Recents" -> RecentsScreen(recents)
                     "Contacts" -> ContactsScreen()
-                    else -> SettingsScreen(onVoipSetup = { showVoipDialog = true })
+                    else -> SettingsScreen(onVoipSetup = { showVoipDialog = true }, onRequestDefaultDialer = onRequestDefaultDialer)
                 }
 
                 Spacer(Modifier.weight(1f))
@@ -234,7 +282,7 @@ private fun DialerScreen(
             }
         }
         Spacer(Modifier.height(8.dp))
-        Text("Cellular calls open your phone app for confirmation.", fontSize = 11.sp, color = Muted)
+        Text("Calls are handled by Android Telecom when DuckCall is the default phone app.", fontSize = 11.sp, color = Muted)
     }
 }
 
@@ -278,12 +326,15 @@ private fun ContactsScreen() {
 }
 
 @Composable
-private fun SettingsScreen(onVoipSetup: () -> Unit) {
+private fun SettingsScreen(onVoipSetup: () -> Unit, onRequestDefaultDialer: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(22.dp)) {
         Text("Settings", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Ink)
         Text("Make DuckCall yours", fontSize = 13.sp, color = Muted)
         Spacer(Modifier.height(20.dp))
-        SettingRow("Cellular calling", "Uses your Android phone app and SIM", "Ready")
+        SettingRow("Cellular calling", "DuckCall can become your default phone app", "Android Telecom")
+        Button(onClick = onRequestDefaultDialer, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+            Text("Set DuckCall as default phone app")
+        }
         SettingRow("Internet calling", "Requires a VoIP provider or DuckCall backend", "Setup needed")
         SettingRow("App version", "DuckCall 0.1.0", "")
         Spacer(Modifier.height(12.dp))
