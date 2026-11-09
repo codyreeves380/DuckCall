@@ -2,13 +2,21 @@
 
 ## Device and platform target
 
-- Device reported by the owner: Samsung Galaxy A16
-- OS reported by the owner: Android 17
+- Device: Samsung Galaxy A16 5G, model SM-A166U (owner-confirmed)
+- Carrier context: AT&T (previously provided by owner; verify active SIM/CSC on handset)
+- OS reported by owner: Android 17
 - Android 17 API level: 37
+- Samsung firmware listing for this model: A166USQUAEZJ5, Android 17 / One UI 9, released 2026-11-03 (confirm installed build on device)
 - App role: user-selected default dialer using Android Telecom
 - Scope: incoming and outgoing cellular calls
 - VoIP: paused
 - Hold music: out of scope
+
+## Device-specific Samsung recording lead
+
+Samsung's A16 user documentation describes a Record control on the in-call screen, with recordings saved in Voice Recorder and an audible notice played to the other participant. Availability can depend on software version, region, and carrier. This is evidence of a Samsung Phone feature, not proof that third-party dialers can invoke the OEM recording service or access its audio output.
+
+First verify whether the stock Samsung Phone app on this exact SM-A166U / AT&T software build shows Record during both incoming and outgoing cellular calls. Record the installed software build and CSC before drawing conclusions.
 
 ## Current implementation findings
 
@@ -32,12 +40,11 @@ Do not use hidden APIs, reflection into privileged telephony services, root-only
 
 ## First-device verification checklist
 
-Record the exact values from the test handset before implementation decisions:
-
 - Android release and API level from Settings > About phone > Software information.
 - One UI version and full software build number.
-- Model code (for example, SM-A165...).
-- Active SIM/carrier and whether calls use VoLTE/VoNR or Wi-Fi Calling.
+- Model code: SM-A166U.
+- Active SIM/carrier and CSC (AT&T expected; verify on device).
+- Whether calls use VoLTE/VoNR or Wi-Fi Calling.
 - Whether Samsung Phone itself displays a Record call control during an active cellular call.
 - Whether the stock Phone app announces recording to participants and where it stores the file.
 - Whether the feature is available for both incoming and outgoing calls.
