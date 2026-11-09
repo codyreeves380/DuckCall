@@ -142,7 +142,9 @@ private fun DuckCallApp(onRequestDefaultDialer: () -> Unit) {
                     }
                 }
 
-                when (selectedTab) {
+                if (ActiveCallStore.call != null) {
+                    InCallScreen()
+                } else when (selectedTab) {
                     "Dialer" -> DialerScreen(
                         number = phoneNumber,
                         onNumberChange = { phoneNumber = it },
@@ -390,6 +392,83 @@ private fun BottomNavigation(selectedTab: String, onSelect: (String) -> Unit) {
                 Text(symbol, fontSize = 21.sp, color = if (selected) Teal else Muted)
                 Text(label, fontSize = 10.sp, color = if (selected) Teal else Muted, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
             }
+        }
+    }
+}
+
+
+@Composable
+private fun InCallScreen() {
+    val callState = ActiveCallStore.state
+    val incoming = callState == android.telecom.Call.STATE_RINGING
+    val held = callState == android.telecom.Call.STATE_HOLDING
+    val status = when (callState) {
+        android.telecom.Call.STATE_RINGING -> "Incoming call"
+        android.telecom.Call.STATE_DIALING -> "Calling…"
+        android.telecom.Call.STATE_CONNECTING -> "Connecting…"
+        android.telecom.Call.STATE_ACTIVE -> "Connected"
+        android.telecom.Call.STATE_HOLDING -> "On hold"
+        android.telecom.Call.STATE_DISCONNECTED -> "Call ended"
+        else -> "Call"
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(Color.White).padding(28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier.size(104.dp).background(Mint, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("☎", color = Teal, fontSize = 42.sp)
+        }
+        Spacer(Modifier.height(24.dp))
+        Text(
+            ActiveCallStore.phoneNumber.ifBlank { "Unknown caller" },
+            fontSize = 25.sp,
+            fontWeight = FontWeight.Bold,
+            color = Ink,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(status, color = Muted, fontSize = 14.sp)
+        Spacer(Modifier.height(42.dp))
+
+        if (incoming) {
+            Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+                Button(
+                    onClick = { ActiveCallStore.hangUp() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E)),
+                    shape = CircleShape,
+                    modifier = Modifier.size(76.dp)
+                ) { Text("Decline", fontSize = 11.sp) }
+                Button(
+                    onClick = { ActiveCallStore.answer() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Teal),
+                    shape = CircleShape,
+                    modifier = Modifier.size(76.dp)
+                ) { Text("Answer", fontSize = 11.sp) }
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick = { ActiveCallStore.toggleMute() }) {
+                    Text(if (ActiveCallStore.muted) "Unmute" else "Mute")
+                }
+                OutlinedButton(onClick = { ActiveCallStore.toggleSpeaker() }) {
+                    Text(if (ActiveCallStore.speaker) "Earpiece" else "Speaker")
+                }
+                OutlinedButton(onClick = {
+                    if (held) ActiveCallStore.unhold() else ActiveCallStore.hold()
+                }) { Text(if (held) "Resume" else "Hold") }
+            }
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = { ActiveCallStore.hangUp() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E)),
+                shape = CircleShape,
+                modifier = Modifier.size(76.dp)
+            ) { Text("End call", fontSize = 11.sp) }
         }
     }
 }
