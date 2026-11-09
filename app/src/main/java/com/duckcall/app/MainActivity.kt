@@ -1,0 +1,342 @@
+package com.duckcall.app
+
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+private val Ink = Color(0xFF14252B)
+private val Teal = Color(0xFF087E78)
+private val Mint = Color(0xFFE6F4F1)
+private val Muted = Color(0xFF718187)
+private val Canvas = Color(0xFFF6F8F8)
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent { DuckCallApp() }
+    }
+}
+
+@Composable
+private fun DuckCallApp() {
+    var selectedTab by rememberSaveable { mutableStateOf("Dialer") }
+    var phoneNumber by rememberSaveable { mutableStateOf("") }
+    var showVoipDialog by remember { mutableStateOf(false) }
+    val recents = remember { mutableStateListOf<String>() }
+
+    MaterialTheme(
+        colorScheme = lightColorScheme(
+            primary = Teal,
+            onPrimary = Color.White,
+            secondary = Mint,
+            background = Canvas,
+            surface = Color.White,
+            onSurface = Ink
+        )
+    ) {
+        Surface(modifier = Modifier.fillMaxSize(), color = Canvas) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(horizontal = 22.dp, vertical = 18.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .background(Mint, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("🦆", fontSize = 23.sp)
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text("DuckCall", fontSize = 23.sp, fontWeight = FontWeight.Bold, color = Ink)
+                            Text("A clearer way to connect", fontSize = 12.sp, color = Muted)
+                        }
+                    }
+                }
+
+                when (selectedTab) {
+                    "Dialer" -> DialerScreen(
+                        number = phoneNumber,
+                        onNumberChange = { phoneNumber = it },
+                        onCellularCall = {
+                            if (phoneNumber.isNotBlank()) {
+                                recents.add(0, phoneNumber)
+                                try {
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(phoneNumber)}"))
+                                    // ACTION_DIAL opens the system phone app; the user confirms the call.
+                                    androidx.compose.ui.platform.LocalContext.current.startActivity(intent)
+                                } catch (_: Exception) {
+                                    // The dialer may not be available on some tablets or emulators.
+                                }
+                            }
+                        },
+                        onVoipCall = { showVoipDialog = true }
+                    )
+                    "Recents" -> RecentsScreen(recents)
+                    "Contacts" -> ContactsScreen()
+                    else -> SettingsScreen(onVoipSetup = { showVoipDialog = true })
+                }
+
+                Spacer(Modifier.weight(1f))
+                BottomNavigation(selectedTab = selectedTab, onSelect = { selectedTab = it })
+            }
+        }
+
+        if (showVoipDialog) {
+            AlertDialog(
+                onDismissRequest = { showVoipDialog = false },
+                title = { Text("Set up internet calling") },
+                text = {
+                    Text(
+                        "The VoIP calling screen is planned, but real internet calls need a calling provider or DuckCall server. Once we choose one, we can add sign-in, audio, incoming calls, and call notifications."
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { showVoipDialog = false }) { Text("Got it") }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun DialerScreen(
+    number: String,
+    onNumberChange: (String) -> Unit,
+    onCellularCall: () -> Unit,
+    onVoipCall: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 22.dp, vertical = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("DIAL A NUMBER", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Muted, letterSpacing = 1.5.sp)
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(
+            value = number,
+            onValueChange = onNumberChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("(555) 000-0000", color = Color.LightGray) },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.headlineSmall.copy(textAlign = TextAlign.Center, color = Ink),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            trailingIcon = {
+                if (number.isNotEmpty()) {
+                    TextButton(onClick = { onNumberChange(number.dropLast(1)) }) { Text("⌫", fontSize = 20.sp) }
+                }
+            }
+        )
+        Spacer(Modifier.height(18.dp))
+
+        val keys = listOf(
+            listOf("1" to "", "2" to "ABC", "3" to "DEF"),
+            listOf("4" to "GHI", "5" to "JKL", "6" to "MNO"),
+            listOf("7" to "PQRS", "8" to "TUV", "9" to "WXYZ"),
+            listOf("*" to "", "0" to "+", "#" to "")
+        )
+        keys.forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
+            ) {
+                row.forEach { (digit, letters) ->
+                    Column(
+                        modifier = Modifier
+                            .size(width = 82.dp, height = 65.dp)
+                            .background(Color.White, RoundedCornerShape(18.dp))
+                            .clickable { onNumberChange(number + digit) },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(digit, fontSize = 25.sp, fontWeight = FontWeight.Medium, color = Ink)
+                        if (letters.isNotEmpty()) Text(letters, fontSize = 9.sp, color = Muted, letterSpacing = 1.sp)
+                    }
+                }
+            }
+            Spacer(Modifier.height(9.dp))
+        }
+
+        Spacer(Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Button(
+                onClick = onCellularCall,
+                enabled = number.isNotBlank(),
+                modifier = Modifier.weight(1f).height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Teal)
+            ) {
+                Text("☎  Cellular", fontWeight = FontWeight.SemiBold)
+            }
+            OutlinedButton(
+                onClick = onVoipCall,
+                enabled = number.isNotBlank(),
+                modifier = Modifier.weight(1f).height(54.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("◎  Internet", fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("Cellular calls open your phone app for confirmation.", fontSize = 11.sp, color = Muted)
+    }
+}
+
+@Composable
+private fun RecentsScreen(recents: List<String>) {
+    Column(Modifier.fillMaxWidth().padding(22.dp)) {
+        Text("Recent calls", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Ink)
+        Text("Your latest calls from this session", fontSize = 13.sp, color = Muted)
+        Spacer(Modifier.height(18.dp))
+        if (recents.isEmpty()) {
+            EmptyState("◷", "No calls yet", "Numbers you dial from DuckCall will appear here.")
+        } else {
+            recents.forEach { number ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.size(42.dp).background(Mint, CircleShape), contentAlignment = Alignment.Center) {
+                        Text("↗", color = Teal, fontSize = 20.sp)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(number, fontWeight = FontWeight.SemiBold, color = Ink)
+                        Text("Outgoing · Cellular handoff", fontSize = 11.sp, color = Muted)
+                    }
+                }
+                Divider(color = Color(0xFFE9EEEE))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContactsScreen() {
+    Column(Modifier.fillMaxWidth().padding(22.dp)) {
+        Text("Contacts", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Ink)
+        Text("People you'll reach from DuckCall", fontSize = 13.sp, color = Muted)
+        Spacer(Modifier.height(22.dp))
+        EmptyState("♙", "Your people, one tap away", "Contact access is not enabled yet. We'll add a permission-safe contact picker next.")
+    }
+}
+
+@Composable
+private fun SettingsScreen(onVoipSetup: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(22.dp)) {
+        Text("Settings", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Ink)
+        Text("Make DuckCall yours", fontSize = 13.sp, color = Muted)
+        Spacer(Modifier.height(20.dp))
+        SettingRow("Cellular calling", "Uses your Android phone app and SIM", "Ready")
+        SettingRow("Internet calling", "Requires a VoIP provider or DuckCall backend", "Setup needed")
+        SettingRow("App version", "DuckCall 0.1.0", "")
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = onVoipSetup, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+            Text("Configure internet calling")
+        }
+    }
+}
+
+@Composable
+private fun SettingRow(title: String, detail: String, status: String) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 13.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, fontWeight = FontWeight.SemiBold, color = Ink)
+            Spacer(Modifier.weight(1f))
+            if (status.isNotEmpty()) Text(status, fontSize = 11.sp, color = Teal, fontWeight = FontWeight.Medium)
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(detail, fontSize = 12.sp, color = Muted)
+    }
+    Divider(color = Color(0xFFE9EEEE))
+}
+
+@Composable
+private fun EmptyState(symbol: String, title: String, detail: String) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 42.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(Modifier.size(66.dp).background(Mint, CircleShape), contentAlignment = Alignment.Center) {
+            Text(symbol, color = Teal, fontSize = 27.sp)
+        }
+        Spacer(Modifier.height(14.dp))
+        Text(title, fontWeight = FontWeight.SemiBold, color = Ink)
+        Spacer(Modifier.height(5.dp))
+        Text(detail, color = Muted, fontSize = 12.sp, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun BottomNavigation(selectedTab: String, onSelect: (String) -> Unit) {
+    val tabs = listOf("Dialer" to "⌗", "Recents" to "◷", "Contacts" to "♙", "Settings" to "⚙")
+    Row(
+        modifier = Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 8.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceAround
+    ) {
+        tabs.forEach { (label, symbol) ->
+            val selected = selectedTab == label
+            Column(
+                modifier = Modifier.weight(1f).clickable { onSelect(label) }.padding(vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(symbol, fontSize = 21.sp, color = if (selected) Teal else Muted)
+                Text(label, fontSize = 10.sp, color = if (selected) Teal else Muted, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+            }
+        }
+    }
+}
