@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +63,7 @@ private val Muted = Color(0xFF718187)
 private val Canvas = Color(0xFFF6F8F8)
 
 class MainActivity : ComponentActivity() {
+    private var incomingDialNumber by mutableStateOf("")
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (isDefaultDialer()) {
             Toast.makeText(this, "DuckCall is now your default phone app", Toast.LENGTH_SHORT).show()
@@ -72,7 +74,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { DuckCallApp(onRequestDefaultDialer = { requestDefaultDialer() }) }
+        incomingDialNumber = intent?.data?.schemeSpecificPart.orEmpty()
+        setContent { DuckCallApp(initialNumber = incomingDialNumber, onRequestDefaultDialer = { requestDefaultDialer() }) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        incomingDialNumber = intent.data?.schemeSpecificPart.orEmpty()
     }
 
     private fun isDefaultDialer(): Boolean {
@@ -100,9 +109,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun DuckCallApp(onRequestDefaultDialer: () -> Unit) {
+private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Unit) {
     var selectedTab by rememberSaveable { mutableStateOf("Dialer") }
-    var phoneNumber by rememberSaveable { mutableStateOf("") }
+    var phoneNumber by rememberSaveable { mutableStateOf(initialNumber) }
+    LaunchedEffect(initialNumber) { if (initialNumber.isNotBlank()) phoneNumber = initialNumber }
     var showVoipDialog by remember { mutableStateOf(false) }
     val recents = remember { mutableStateListOf<String>() }
     val context = LocalContext.current
