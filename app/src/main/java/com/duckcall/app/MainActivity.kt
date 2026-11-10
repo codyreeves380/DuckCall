@@ -144,7 +144,14 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
     var internetEnabled by remember { mutableStateOf(preferences.getBoolean("internet_enabled", true)) }
     var recentsEnabled by remember { mutableStateOf(preferences.getBoolean("recents_enabled", true)) }
     var contactsEnabled by remember { mutableStateOf(preferences.getBoolean("contacts_enabled", true)) }
+    var muteControlEnabled by remember { mutableStateOf(preferences.getBoolean("mute_control_enabled", true)) }
+    var speakerControlEnabled by remember { mutableStateOf(preferences.getBoolean("speaker_control_enabled", true)) }
+    var holdControlEnabled by remember { mutableStateOf(preferences.getBoolean("hold_control_enabled", true)) }
+    var dialerLayout by remember { mutableStateOf(preferences.getString("dialer_layout", "standard") ?: "standard") }
+    var callButtonOrder by remember { mutableStateOf(preferences.getString("call_button_order", "cellular_first") ?: "cellular_first") }
+    var inCallButtonOrder by remember { mutableStateOf(preferences.getString("in_call_button_order", "mute_speaker_hold") ?: "mute_speaker_hold") }
     fun savePreference(key: String, value: Boolean) { preferences.edit().putBoolean(key, value).apply() }
+    fun saveChoice(key: String, value: String) { preferences.edit().putString(key, value).apply() }
     LaunchedEffect(selectedTab, recentsEnabled, contactsEnabled) {
         if (selectedTab == "Recents" && !recentsEnabled || selectedTab == "Contacts" && !contactsEnabled) selectedTab = "Dialer"
     }
@@ -189,7 +196,10 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                 }
 
                 if (ActiveCallStore.call != null) {
-                    InCallScreen()
+                    InCallScreen(
+                        showMute = muteControlEnabled, showSpeaker = speakerControlEnabled,
+                        showHold = holdControlEnabled, buttonOrder = inCallButtonOrder
+                    )
                 } else when (selectedTab) {
                     "Dialer" -> DialerScreen(
                         number = phoneNumber,
@@ -220,7 +230,8 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                         },
                         onVoipCall = { showVoipDialog = true },
                         cellularEnabled = cellularEnabled,
-                        internetEnabled = internetEnabled
+                        internetEnabled = internetEnabled,
+                        dialerLayout = dialerLayout, callButtonOrder = callButtonOrder
                     )
                     "Recents" -> RecentsScreen(recents)
                     "Contacts" -> ContactsScreen()
@@ -229,7 +240,13 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                         cellularEnabled = cellularEnabled, onCellularChange = { cellularEnabled = it; savePreference("cellular_enabled", it) },
                         internetEnabled = internetEnabled, onInternetChange = { internetEnabled = it; savePreference("internet_enabled", it) },
                         recentsEnabled = recentsEnabled, onRecentsChange = { recentsEnabled = it; savePreference("recents_enabled", it) },
-                        contactsEnabled = contactsEnabled, onContactsChange = { contactsEnabled = it; savePreference("contacts_enabled", it) }
+                        contactsEnabled = contactsEnabled, onContactsChange = { contactsEnabled = it; savePreference("contacts_enabled", it) },
+                        muteControlEnabled = muteControlEnabled, onMuteControlChange = { muteControlEnabled = it; savePreference("mute_control_enabled", it) },
+                        speakerControlEnabled = speakerControlEnabled, onSpeakerControlChange = { speakerControlEnabled = it; savePreference("speaker_control_enabled", it) },
+                        holdControlEnabled = holdControlEnabled, onHoldControlChange = { holdControlEnabled = it; savePreference("hold_control_enabled", it) },
+                        dialerLayout = dialerLayout, onDialerLayoutChange = { dialerLayout = it; saveChoice("dialer_layout", it) },
+                        callButtonOrder = callButtonOrder, onCallButtonOrderChange = { callButtonOrder = it; saveChoice("call_button_order", it) },
+                        inCallButtonOrder = inCallButtonOrder, onInCallButtonOrderChange = { inCallButtonOrder = it; saveChoice("in_call_button_order", it) }
                     )
                 }
 
@@ -262,7 +279,9 @@ private fun DialerScreen(
     onCellularCall: () -> Unit,
     onVoipCall: () -> Unit,
     cellularEnabled: Boolean,
-    internetEnabled: Boolean
+    internetEnabled: Boolean,
+    dialerLayout: String,
+    callButtonOrder: String
 ) {
     Column(
         modifier = Modifier
@@ -302,7 +321,10 @@ private fun DialerScreen(
                 row.forEach { (digit, letters) ->
                     Column(
                         modifier = Modifier
-                            .size(width = 82.dp, height = 65.dp)
+                            .size(
+                                width = when (dialerLayout) { "compact" -> 72.dp; "large" -> 92.dp; else -> 82.dp },
+                                height = when (dialerLayout) { "compact" -> 56.dp; "large" -> 74.dp; else -> 65.dp }
+                            )
                             .background(Color.White, RoundedCornerShape(18.dp))
                             .clickable { onNumberChange(number + digit) },
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -318,15 +340,24 @@ private fun DialerScreen(
 
         Spacer(Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (cellularEnabled) Button(
+            if (cellularEnabled && callButtonOrder == "cellular_first") Button(
                 onClick = onCellularCall, enabled = number.isNotBlank(),
                 modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Teal)
             ) { Text("☎  Cellular", fontWeight = FontWeight.SemiBold) }
-            if (internetEnabled) OutlinedButton(
+            if (internetEnabled && callButtonOrder == "cellular_first") OutlinedButton(
                 onClick = onVoipCall, enabled = number.isNotBlank(),
                 modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(16.dp)
             ) { Text("◎  Internet", fontWeight = FontWeight.SemiBold) }
+            if (internetEnabled && callButtonOrder == "internet_first") OutlinedButton(
+                onClick = onVoipCall, enabled = number.isNotBlank(),
+                modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(16.dp)
+            ) { Text("◎  Internet", fontWeight = FontWeight.SemiBold) }
+            if (cellularEnabled && callButtonOrder == "internet_first") Button(
+                onClick = onCellularCall, enabled = number.isNotBlank(),
+                modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Teal)
+            ) { Text("☎  Cellular", fontWeight = FontWeight.SemiBold) }
         }
         Spacer(Modifier.height(8.dp))
         Text("Calls are handled by Android Telecom when DuckCall is the default phone app.", fontSize = 11.sp, color = Muted)
@@ -378,7 +409,13 @@ private fun SettingsScreen(
     cellularEnabled: Boolean, onCellularChange: (Boolean) -> Unit,
     internetEnabled: Boolean, onInternetChange: (Boolean) -> Unit,
     recentsEnabled: Boolean, onRecentsChange: (Boolean) -> Unit,
-    contactsEnabled: Boolean, onContactsChange: (Boolean) -> Unit
+    contactsEnabled: Boolean, onContactsChange: (Boolean) -> Unit,
+    muteControlEnabled: Boolean, onMuteControlChange: (Boolean) -> Unit,
+    speakerControlEnabled: Boolean, onSpeakerControlChange: (Boolean) -> Unit,
+    holdControlEnabled: Boolean, onHoldControlChange: (Boolean) -> Unit,
+    dialerLayout: String, onDialerLayoutChange: (String) -> Unit,
+    callButtonOrder: String, onCallButtonOrderChange: (String) -> Unit,
+    inCallButtonOrder: String, onInCallButtonOrderChange: (String) -> Unit
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 16.dp)) {
         Text("Settings", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Ink)
@@ -392,6 +429,24 @@ private fun SettingsScreen(
         Text("NAVIGATION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Teal, letterSpacing = 1.2.sp)
         ToggleSetting("Recent calls", "Show the Recents tab", recentsEnabled, onRecentsChange)
         ToggleSetting("Contacts", "Show the Contacts tab", contactsEnabled, onContactsChange)
+        Spacer(Modifier.height(18.dp))
+        Text("IN-CALL CONTROLS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Teal, letterSpacing = 1.2.sp)
+        ToggleSetting("Mute button", "Show the mute control during calls", muteControlEnabled, onMuteControlChange)
+        ToggleSetting("Speakerphone button", "Show the speakerphone control during calls", speakerControlEnabled, onSpeakerControlChange)
+        ToggleSetting("Hold button", "Show the hold and resume control during calls", holdControlEnabled, onHoldControlChange)
+        ChoiceSetting("In-call button order", if (inCallButtonOrder == "mute_speaker_hold") "Mute · Speaker · Hold" else "Hold · Mute · Speaker") {
+            val next = if (inCallButtonOrder == "mute_speaker_hold") "hold_mute_speaker" else "mute_speaker_hold"
+            onInCallButtonOrderChange(next)
+        }
+        Spacer(Modifier.height(18.dp))
+        Text("DIALER LAYOUT", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Teal, letterSpacing = 1.2.sp)
+        ChoiceSetting("Key size", dialerLayout.replaceFirstChar { it.uppercase() }) {
+            val next = when (dialerLayout) { "standard" -> "compact"; "compact" -> "large"; else -> "standard" }
+            onDialerLayoutChange(next)
+        }
+        ChoiceSetting("Call button order", if (callButtonOrder == "cellular_first") "Cellular first" else "Internet first") {
+            onCallButtonOrderChange(if (callButtonOrder == "cellular_first") "internet_first" else "cellular_first")
+        }
         Spacer(Modifier.height(18.dp))
         Text("MORE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Teal, letterSpacing = 1.2.sp)
         SettingRow("App version", "DuckCall 0.1.0", "Test build")
@@ -408,6 +463,18 @@ private fun ToggleSetting(title: String, detail: String, checked: Boolean, onChe
             Text(detail, fontSize = 12.sp, color = Muted)
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+    Divider(color = Color(0xFFE9EEEE))
+}
+
+@Composable
+private fun ChoiceSetting(title: String, value: String, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.SemiBold, color = Ink)
+            Text(value, fontSize = 12.sp, color = Muted)
+        }
+        OutlinedButton(onClick = onClick) { Text("Change") }
     }
     Divider(color = Color(0xFFE9EEEE))
 }
@@ -469,7 +536,7 @@ private fun BottomNavigation(selectedTab: String, onSelect: (String) -> Unit, re
 
 
 @Composable
-private fun InCallScreen() {
+private fun InCallScreen(showMute: Boolean, showSpeaker: Boolean, showHold: Boolean, buttonOrder: String) {
     val callState = ActiveCallStore.state
     val incoming = callState == android.telecom.Call.STATE_RINGING
     val held = callState == android.telecom.Call.STATE_HOLDING
@@ -522,16 +589,27 @@ private fun InCallScreen() {
                 ) { Text("Answer", fontSize = 11.sp) }
             }
         } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = { ActiveCallStore.toggleMute() }) {
+            val muteButton: @Composable () -> Unit = {
+                if (showMute) OutlinedButton(onClick = { ActiveCallStore.toggleMute() }) {
                     Text(if (ActiveCallStore.muted) "Unmute" else "Mute")
                 }
-                OutlinedButton(onClick = { ActiveCallStore.toggleSpeaker() }) {
+            }
+            val speakerButton: @Composable () -> Unit = {
+                if (showSpeaker) OutlinedButton(onClick = { ActiveCallStore.toggleSpeaker() }) {
                     Text(if (ActiveCallStore.speaker) "Earpiece" else "Speaker")
                 }
-                OutlinedButton(onClick = {
+            }
+            val holdButton: @Composable () -> Unit = {
+                if (showHold) OutlinedButton(onClick = {
                     if (held) ActiveCallStore.unhold() else ActiveCallStore.hold()
                 }) { Text(if (held) "Resume" else "Hold") }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (buttonOrder == "hold_mute_speaker") {
+                    holdButton(); muteButton(); speakerButton()
+                } else {
+                    muteButton(); speakerButton(); holdButton()
+                }
             }
             Spacer(Modifier.height(24.dp))
             Button(
