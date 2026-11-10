@@ -1,6 +1,6 @@
 package com.duckcall.app
 
-import android.app.InCallService
+import android.telecom.InCallService
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
