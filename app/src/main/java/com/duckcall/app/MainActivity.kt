@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -417,7 +419,7 @@ private fun SettingsScreen(
     callButtonOrder: String, onCallButtonOrderChange: (String) -> Unit,
     inCallButtonOrder: String, onInCallButtonOrderChange: (String) -> Unit
 ) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 16.dp)) {
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 16.dp)) {
         Text("Settings", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Ink)
         Text("Control what appears and how DuckCall works", fontSize = 13.sp, color = Muted)
         Spacer(Modifier.height(18.dp))
