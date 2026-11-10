@@ -57,15 +57,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val Ink = Color(0xFF14252B)
-private val Teal = Color(0xFF087E78)
-private val Mint = Color(0xFFE6F4F1)
-private val Muted = Color(0xFF718187)
-private val Canvas = Color(0xFFF6F8F8)
+private val Ink = Color(0xFF101114)
+private val Teal = Color(0xFF2563EB)
+private val Mint = Color(0xFFFFF2B3)
+private val Muted = Color(0xFF707784)
+private val Canvas = Color(0xFFF4F5F8)
 
 class MainActivity : ComponentActivity() {
     private var incomingDialNumber by mutableStateOf("")
     private val notificationPermissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private val callPermissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) Toast.makeText(this, "Phone permission is needed to place cellular calls from DuckCall", Toast.LENGTH_LONG).show()
+    }
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (isDefaultDialer()) {
             Toast.makeText(this, "DuckCall is now your default phone app", Toast.LENGTH_SHORT).show()
@@ -78,6 +81,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         incomingDialNumber = intent?.data?.schemeSpecificPart.orEmpty()
         setContent { DuckCallApp(initialNumber = incomingDialNumber, onRequestDefaultDialer = { requestDefaultDialer() }) }
+        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+            callPermissionRequest.launch(Manifest.permission.CALL_PHONE)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
