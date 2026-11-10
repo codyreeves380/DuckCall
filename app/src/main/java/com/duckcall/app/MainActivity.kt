@@ -67,7 +67,11 @@ class MainActivity : ComponentActivity() {
     private var incomingDialNumber by mutableStateOf("")
     private val notificationPermissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private val callPermissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (!granted) Toast.makeText(this, "Phone permission is needed to place cellular calls from DuckCall", Toast.LENGTH_LONG).show()
+        if (!granted) {
+            Toast.makeText(this, "Phone permission is needed to place cellular calls from DuckCall", Toast.LENGTH_LONG).show()
+        } else {
+            requestNotificationPermissionIfNeeded()
+        }
     }
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (isDefaultDialer()) {
@@ -83,7 +87,12 @@ class MainActivity : ComponentActivity() {
         setContent { DuckCallApp(initialNumber = incomingDialNumber, onRequestDefaultDialer = { requestDefaultDialer() }) }
         if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
             callPermissionRequest.launch(Manifest.permission.CALL_PHONE)
+        } else {
+            requestNotificationPermissionIfNeeded()
         }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
