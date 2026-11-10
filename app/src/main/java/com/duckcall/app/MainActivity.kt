@@ -145,6 +145,9 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
     var recentsEnabled by remember { mutableStateOf(preferences.getBoolean("recents_enabled", true)) }
     var contactsEnabled by remember { mutableStateOf(preferences.getBoolean("contacts_enabled", true)) }
     fun savePreference(key: String, value: Boolean) { preferences.edit().putBoolean(key, value).apply() }
+    LaunchedEffect(selectedTab, recentsEnabled, contactsEnabled) {
+        if (selectedTab == "Recents" && !recentsEnabled || selectedTab == "Contacts" && !contactsEnabled) selectedTab = "Dialer"
+    }
 
     MaterialTheme(
         colorScheme = lightColorScheme(
@@ -314,27 +317,16 @@ private fun DialerScreen(
         }
 
         Spacer(Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Button(
-                onClick = onCellularCall,
-                enabled = number.isNotBlank() && cellularEnabled,
-                modifier = Modifier.weight(1f).height(54.dp),
-                shape = RoundedCornerShape(16.dp),
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (cellularEnabled) Button(
+                onClick = onCellularCall, enabled = number.isNotBlank(),
+                modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Teal)
-            ) {
-                Text("☎  Cellular", fontWeight = FontWeight.SemiBold)
-            }
-            OutlinedButton(
-                onClick = onVoipCall,
-                enabled = number.isNotBlank() && internetEnabled,
-                modifier = Modifier.weight(1f).height(54.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text("◎  Internet", fontWeight = FontWeight.SemiBold)
-            }
+            ) { Text("☎  Cellular", fontWeight = FontWeight.SemiBold) }
+            if (internetEnabled) OutlinedButton(
+                onClick = onVoipCall, enabled = number.isNotBlank(),
+                modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(16.dp)
+            ) { Text("◎  Internet", fontWeight = FontWeight.SemiBold) }
         }
         Spacer(Modifier.height(8.dp))
         Text("Calls are handled by Android Telecom when DuckCall is the default phone app.", fontSize = 11.sp, color = Muted)
