@@ -36,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
@@ -138,6 +139,12 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
     var showVoipDialog by remember { mutableStateOf(false) }
     val recents = remember { mutableStateListOf<String>() }
     val context = LocalContext.current
+    val preferences = remember { context.getSharedPreferences("duckcall_preferences", android.content.Context.MODE_PRIVATE) }
+    var cellularEnabled by remember { mutableStateOf(preferences.getBoolean("cellular_enabled", true)) }
+    var internetEnabled by remember { mutableStateOf(preferences.getBoolean("internet_enabled", true)) }
+    var recentsEnabled by remember { mutableStateOf(preferences.getBoolean("recents_enabled", true)) }
+    var contactsEnabled by remember { mutableStateOf(preferences.getBoolean("contacts_enabled", true)) }
+    fun savePreference(key: String, value: Boolean) { preferences.edit().putBoolean(key, value).apply() }
 
     MaterialTheme(
         colorScheme = lightColorScheme(
@@ -170,6 +177,10 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                         Column {
                             Text("DuckCall", fontSize = 23.sp, fontWeight = FontWeight.Bold, color = Ink)
                             Text("A clearer way to connect", fontSize = 12.sp, color = Muted)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        TextButton(onClick = { selectedTab = "Settings" }) {
+                            Text("⚙ Settings", color = Teal, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -204,15 +215,23 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                                 }
                             }
                         },
-                        onVoipCall = { showVoipDialog = true }
+                        onVoipCall = { showVoipDialog = true },
+                        cellularEnabled = cellularEnabled,
+                        internetEnabled = internetEnabled
                     )
                     "Recents" -> RecentsScreen(recents)
                     "Contacts" -> ContactsScreen()
-                    else -> SettingsScreen(onVoipSetup = { showVoipDialog = true }, onRequestDefaultDialer = onRequestDefaultDialer)
+                    else -> SettingsScreen(
+                        onVoipSetup = { showVoipDialog = true }, onRequestDefaultDialer = onRequestDefaultDialer,
+                        cellularEnabled = cellularEnabled, onCellularChange = { cellularEnabled = it; savePreference("cellular_enabled", it) },
+                        internetEnabled = internetEnabled, onInternetChange = { internetEnabled = it; savePreference("internet_enabled", it) },
+                        recentsEnabled = recentsEnabled, onRecentsChange = { recentsEnabled = it; savePreference("recents_enabled", it) },
+                        contactsEnabled = contactsEnabled, onContactsChange = { contactsEnabled = it; savePreference("contacts_enabled", it) }
+                    )
                 }
 
                 Spacer(Modifier.weight(1f))
-                BottomNavigation(selectedTab = selectedTab, onSelect = { selectedTab = it })
+                BottomNavigation(selectedTab = selectedTab, onSelect = { selectedTab = it }, recentsEnabled = recentsEnabled, contactsEnabled = contactsEnabled)
             }
         }
 
@@ -238,7 +257,9 @@ private fun DialerScreen(
     number: String,
     onNumberChange: (String) -> Unit,
     onCellularCall: () -> Unit,
-    onVoipCall: () -> Unit
+    onVoipCall: () -> Unit,
+    cellularEnabled: Boolean,
+    internetEnabled: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -299,7 +320,7 @@ private fun DialerScreen(
         ) {
             Button(
                 onClick = onCellularCall,
-                enabled = number.isNotBlank(),
+                enabled = number.isNotBlank() && cellularEnabled,
                 modifier = Modifier.weight(1f).height(54.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Teal)
@@ -308,7 +329,7 @@ private fun DialerScreen(
             }
             OutlinedButton(
                 onClick = onVoipCall,
-                enabled = number.isNotBlank(),
+                enabled = number.isNotBlank() && internetEnabled,
                 modifier = Modifier.weight(1f).height(54.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
@@ -360,22 +381,43 @@ private fun ContactsScreen() {
 }
 
 @Composable
-private fun SettingsScreen(onVoipSetup: () -> Unit, onRequestDefaultDialer: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(22.dp)) {
+private fun SettingsScreen(
+    onVoipSetup: () -> Unit, onRequestDefaultDialer: () -> Unit,
+    cellularEnabled: Boolean, onCellularChange: (Boolean) -> Unit,
+    internetEnabled: Boolean, onInternetChange: (Boolean) -> Unit,
+    recentsEnabled: Boolean, onRecentsChange: (Boolean) -> Unit,
+    contactsEnabled: Boolean, onContactsChange: (Boolean) -> Unit
+) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 16.dp)) {
         Text("Settings", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Ink)
-        Text("Make DuckCall yours", fontSize = 13.sp, color = Muted)
-        Spacer(Modifier.height(20.dp))
-        SettingRow("Cellular calling", "DuckCall can become your default phone app", "Android Telecom")
-        Button(onClick = onRequestDefaultDialer, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
-            Text("Set DuckCall as default phone app")
-        }
-        SettingRow("Internet calling", "Requires a VoIP provider or DuckCall backend", "Setup needed")
-        SettingRow("App version", "DuckCall 0.1.0", "")
-        Spacer(Modifier.height(12.dp))
-        Button(onClick = onVoipSetup, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
-            Text("Configure internet calling")
-        }
+        Text("Control what appears and how DuckCall works", fontSize = 13.sp, color = Muted)
+        Spacer(Modifier.height(18.dp))
+        Text("CALLING", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Teal, letterSpacing = 1.2.sp)
+        ToggleSetting("Cellular calling", "Show and enable carrier calls", cellularEnabled, onCellularChange)
+        ToggleSetting("Internet calling", "Show the internet call option (provider setup still required)", internetEnabled, onInternetChange)
+        Button(onClick = onRequestDefaultDialer, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) { Text("Set DuckCall as default phone app") }
+        Spacer(Modifier.height(18.dp))
+        Text("NAVIGATION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Teal, letterSpacing = 1.2.sp)
+        ToggleSetting("Recent calls", "Show the Recents tab", recentsEnabled, onRecentsChange)
+        ToggleSetting("Contacts", "Show the Contacts tab", contactsEnabled, onContactsChange)
+        Spacer(Modifier.height(18.dp))
+        Text("MORE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Teal, letterSpacing = 1.2.sp)
+        SettingRow("App version", "DuckCall 0.1.0", "Test build")
+        Button(onClick = onVoipSetup, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) { Text("Configure internet calling") }
     }
+}
+
+@Composable
+private fun ToggleSetting(title: String, detail: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.SemiBold, color = Ink)
+            Spacer(Modifier.height(3.dp))
+            Text(detail, fontSize = 12.sp, color = Muted)
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+    Divider(color = Color(0xFFE9EEEE))
 }
 
 @Composable
@@ -409,8 +451,13 @@ private fun EmptyState(symbol: String, title: String, detail: String) {
 }
 
 @Composable
-private fun BottomNavigation(selectedTab: String, onSelect: (String) -> Unit) {
-    val tabs = listOf("Dialer" to "⌗", "Recents" to "◷", "Contacts" to "♙", "Settings" to "⚙")
+private fun BottomNavigation(selectedTab: String, onSelect: (String) -> Unit, recentsEnabled: Boolean, contactsEnabled: Boolean) {
+    val tabs = buildList {
+        add("Dialer" to "⌗")
+        if (recentsEnabled) add("Recents" to "◷")
+        if (contactsEnabled) add("Contacts" to "♙")
+        add("Settings" to "⚙")
+    }
     Row(
         modifier = Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 8.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceAround
