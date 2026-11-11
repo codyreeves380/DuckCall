@@ -144,13 +144,18 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
     val preferences = remember { context.getSharedPreferences("duckcall_preferences", android.content.Context.MODE_PRIVATE) }
     var cellularEnabled by remember { mutableStateOf(preferences.getBoolean("cellular_enabled", true)) }
     var internetEnabled by remember { mutableStateOf(preferences.getBoolean("internet_enabled", true)) }
-    var recentsEnabled by remember { mutableStateOf(preferences.getBoolean("recents_enabled", true)) }
-    var favoritesEnabled by remember { mutableStateOf(preferences.getBoolean("favorites_enabled", true)) }
+    var recentsEnabled by remember { mutableStateOf(preferences.getBoolean("recents_enabled", false)) }
+    var favoritesEnabled by remember { mutableStateOf(preferences.getBoolean("favorites_enabled", false)) }
     var contactsEnabled by remember { mutableStateOf(preferences.getBoolean("contacts_enabled", true)) }
     var muteControlEnabled by remember { mutableStateOf(preferences.getBoolean("mute_control_enabled", true)) }
     var speakerControlEnabled by remember { mutableStateOf(preferences.getBoolean("speaker_control_enabled", true)) }
     var holdControlEnabled by remember { mutableStateOf(preferences.getBoolean("hold_control_enabled", true)) }
     var dialerLayout by remember { mutableStateOf(preferences.getString("dialer_layout", "standard") ?: "standard") }
+    var mainScreenStyle by remember { mutableStateOf(preferences.getString("main_screen_style", "minimal") ?: "minimal") }
+    var showDialpad by remember { mutableStateOf(preferences.getBoolean("show_dialpad", true)) }
+    var showSearch by remember { mutableStateOf(preferences.getBoolean("show_search", false)) }
+    var navigationPosition by remember { mutableStateOf(preferences.getString("navigation_position", "bottom") ?: "bottom") }
+    var accentColor by remember { mutableStateOf(preferences.getString("accent_color", "blue") ?: "blue") }
     var callButtonOrder by remember { mutableStateOf(preferences.getString("call_button_order", "cellular_first") ?: "cellular_first") }
     var inCallButtonOrder by remember { mutableStateOf(preferences.getString("in_call_button_order", "mute_speaker_hold") ?: "mute_speaker_hold") }
     fun savePreference(key: String, value: Boolean) { preferences.edit().putBoolean(key, value).apply() }
@@ -189,7 +194,7 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                         Spacer(Modifier.width(12.dp))
                         Column {
                             Text("DuckCall", fontSize = 23.sp, fontWeight = FontWeight.Bold, color = Ink)
-                            Text("A clearer way to connect", fontSize = 12.sp, color = Muted)
+                            if (mainScreenStyle != "minimal") Text("A clearer way to connect", fontSize = 12.sp, color = Muted)
                         }
                         Spacer(Modifier.weight(1f))
                         TextButton(onClick = { selectedTab = "Settings" }) {
@@ -234,7 +239,8 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                         onVoipCall = { showVoipDialog = true },
                         cellularEnabled = cellularEnabled,
                         internetEnabled = internetEnabled,
-                        dialerLayout = dialerLayout, callButtonOrder = callButtonOrder
+                        dialerLayout = dialerLayout, callButtonOrder = callButtonOrder,
+                        showDialpad = showDialpad
                     )
                     "Recents" -> RecentsScreen(recents)
                     "Favorites" -> FavoritesScreen()
@@ -246,6 +252,11 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                         recentsEnabled = recentsEnabled, onRecentsChange = { recentsEnabled = it; savePreference("recents_enabled", it) },
                         favoritesEnabled = favoritesEnabled, onFavoritesChange = { favoritesEnabled = it; savePreference("favorites_enabled", it) },
                         contactsEnabled = contactsEnabled, onContactsChange = { contactsEnabled = it; savePreference("contacts_enabled", it) },
+                        mainScreenStyle = mainScreenStyle, onMainScreenStyleChange = { mainScreenStyle = it; saveChoice("main_screen_style", it) },
+                        showSearch = showSearch, onShowSearchChange = { showSearch = it; savePreference("show_search", it) },
+                        showDialpad = showDialpad, onShowDialpadChange = { showDialpad = it; savePreference("show_dialpad", it) },
+                        navigationPosition = navigationPosition, onNavigationPositionChange = { navigationPosition = it; saveChoice("navigation_position", it) },
+                        accentColor = accentColor, onAccentColorChange = { accentColor = it; saveChoice("accent_color", it) },
                         muteControlEnabled = muteControlEnabled, onMuteControlChange = { muteControlEnabled = it; savePreference("mute_control_enabled", it) },
                         speakerControlEnabled = speakerControlEnabled, onSpeakerControlChange = { speakerControlEnabled = it; savePreference("speaker_control_enabled", it) },
                         holdControlEnabled = holdControlEnabled, onHoldControlChange = { holdControlEnabled = it; savePreference("hold_control_enabled", it) },
@@ -286,7 +297,8 @@ private fun DialerScreen(
     cellularEnabled: Boolean,
     internetEnabled: Boolean,
     dialerLayout: String,
-    callButtonOrder: String
+    callButtonOrder: String,
+    showDialpad: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -312,35 +324,37 @@ private fun DialerScreen(
         )
         Spacer(Modifier.height(18.dp))
 
-        val keys = listOf(
-            listOf("1" to "", "2" to "ABC", "3" to "DEF"),
-            listOf("4" to "GHI", "5" to "JKL", "6" to "MNO"),
-            listOf("7" to "PQRS", "8" to "TUV", "9" to "WXYZ"),
-            listOf("*" to "", "0" to "+", "#" to "")
-        )
-        keys.forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
-            ) {
-                row.forEach { (digit, letters) ->
-                    Column(
-                        modifier = Modifier
-                            .size(
-                                width = when (dialerLayout) { "compact" -> 72.dp; "large" -> 92.dp; else -> 82.dp },
-                                height = when (dialerLayout) { "compact" -> 56.dp; "large" -> 74.dp; else -> 65.dp }
-                            )
-                            .background(Color.White, RoundedCornerShape(18.dp))
-                            .clickable { onNumberChange(number + digit) },
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(digit, fontSize = 25.sp, fontWeight = FontWeight.Medium, color = Ink)
-                        if (letters.isNotEmpty()) Text(letters, fontSize = 9.sp, color = Muted, letterSpacing = 1.sp)
+        if (showDialpad) {
+            val keys = listOf(
+                listOf("1" to "", "2" to "ABC", "3" to "DEF"),
+                listOf("4" to "GHI", "5" to "JKL", "6" to "MNO"),
+                listOf("7" to "PQRS", "8" to "TUV", "9" to "WXYZ"),
+                listOf("*" to "", "0" to "+", "#" to "")
+            )
+            keys.forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
+                ) {
+                    row.forEach { (digit, letters) ->
+                        Column(
+                            modifier = Modifier
+                                .size(
+                                    width = when (dialerLayout) { "compact" -> 72.dp; "large" -> 92.dp; else -> 82.dp },
+                                    height = when (dialerLayout) { "compact" -> 56.dp; "large" -> 74.dp; else -> 65.dp }
+                                )
+                                .background(Color.White, RoundedCornerShape(18.dp))
+                                .clickable { onNumberChange(number + digit) },
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(digit, fontSize = 25.sp, fontWeight = FontWeight.Medium, color = Ink)
+                            if (letters.isNotEmpty()) Text(letters, fontSize = 9.sp, color = Muted, letterSpacing = 1.sp)
+                        }
                     }
                 }
+                Spacer(Modifier.height(9.dp))
             }
-            Spacer(Modifier.height(9.dp))
         }
 
         Spacer(Modifier.height(8.dp))
@@ -426,6 +440,11 @@ private fun SettingsScreen(
     recentsEnabled: Boolean, onRecentsChange: (Boolean) -> Unit,
     favoritesEnabled: Boolean, onFavoritesChange: (Boolean) -> Unit,
     contactsEnabled: Boolean, onContactsChange: (Boolean) -> Unit,
+    mainScreenStyle: String, onMainScreenStyleChange: (String) -> Unit,
+    showSearch: Boolean, onShowSearchChange: (Boolean) -> Unit,
+    showDialpad: Boolean, onShowDialpadChange: (Boolean) -> Unit,
+    navigationPosition: String, onNavigationPositionChange: (String) -> Unit,
+    accentColor: String, onAccentColorChange: (String) -> Unit,
     muteControlEnabled: Boolean, onMuteControlChange: (Boolean) -> Unit,
     speakerControlEnabled: Boolean, onSpeakerControlChange: (Boolean) -> Unit,
     holdControlEnabled: Boolean, onHoldControlChange: (Boolean) -> Unit,
@@ -446,6 +465,17 @@ private fun SettingsScreen(
         ToggleSetting("Favorites", "Show the Favorites tab", favoritesEnabled, onFavoritesChange)
         ToggleSetting("Recent calls", "Show the Recents tab", recentsEnabled, onRecentsChange)
         ToggleSetting("Contacts", "Show the Contacts tab", contactsEnabled, onContactsChange)
+        ChoiceSetting("Main screen style", mainScreenStyle.replaceFirstChar { it.uppercase() }) {
+            onMainScreenStyleChange(if (mainScreenStyle == "minimal") "classic" else "minimal")
+        }
+        ToggleSetting("Search bar", "Show search on the main screen", showSearch, onShowSearchChange)
+        ToggleSetting("Dial pad", "Show the number keypad", showDialpad, onShowDialpadChange)
+        ChoiceSetting("Navigation position", navigationPosition.replaceFirstChar { it.uppercase() }) {
+            onNavigationPositionChange(if (navigationPosition == "bottom") "top" else "bottom")
+        }
+        ChoiceSetting("Accent color", accentColor.replaceFirstChar { it.uppercase() }) {
+            onAccentColorChange(if (accentColor == "blue") "yellow" else "blue")
+        }
         Spacer(Modifier.height(18.dp))
         Text("IN-CALL CONTROLS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Teal, letterSpacing = 1.2.sp)
         ToggleSetting("Mute button", "Show the mute control during calls", muteControlEnabled, onMuteControlChange)
