@@ -143,6 +143,7 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("duckcall_preferences", android.content.Context.MODE_PRIVATE) }
     var cellularEnabled by remember { mutableStateOf(preferences.getBoolean("cellular_enabled", true)) }
+    var privateCallerId by remember { mutableStateOf(preferences.getBoolean("private_caller_id_enabled", false)) }
     var internetEnabled by remember { mutableStateOf(preferences.getBoolean("internet_enabled", true)) }
     var recentsEnabled by remember { mutableStateOf(preferences.getBoolean("recents_enabled", false)) }
     var favoritesEnabled by remember { mutableStateOf(preferences.getBoolean("favorites_enabled", false)) }
@@ -225,8 +226,15 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                                 } else {
                                     try {
                                         val telecom = context.getSystemService(android.content.Context.TELECOM_SERVICE) as TelecomManager
+                                        val digitsOnly = phoneNumber.filter { it.isDigit() }
+                                        val isEmergencyNumber = digitsOnly == "911" || digitsOnly == "112"
+                                        val dialString = if (privateCallerId && !isEmergencyNumber && !phoneNumber.startsWith("*67")) {
+                                            "*67$phoneNumber"
+                                        } else {
+                                            phoneNumber
+                                        }
                                         telecom.placeCall(
-                                            Uri.fromParts("tel", phoneNumber, null),
+                                            Uri.fromParts("tel", dialString, null),
                                             Bundle()
                                         )
                                         recents.add(0, phoneNumber)
@@ -238,6 +246,8 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                         },
                         onVoipCall = { showVoipDialog = true },
                         cellularEnabled = cellularEnabled,
+                        privateCallerId = privateCallerId,
+                        onPrivateCallerIdChange = { privateCallerId = it; savePreference("private_caller_id_enabled", it) },
                         internetEnabled = internetEnabled,
                         dialerLayout = dialerLayout, callButtonOrder = callButtonOrder,
                         showDialpad = showDialpad
@@ -295,6 +305,8 @@ private fun DialerScreen(
     onCellularCall: () -> Unit,
     onVoipCall: () -> Unit,
     cellularEnabled: Boolean,
+    privateCallerId: Boolean,
+    onPrivateCallerIdChange: (Boolean) -> Unit,
     internetEnabled: Boolean,
     dialerLayout: String,
     callButtonOrder: String,
@@ -322,7 +334,14 @@ private fun DialerScreen(
                 }
             }
         )
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(10.dp))
+        ToggleSetting(
+            "Hide my caller ID",
+            "Use *67 for outgoing cellular calls",
+            privateCallerId,
+            onPrivateCallerIdChange
+        )
+        Spacer(Modifier.height(8.dp))
 
         if (showDialpad) {
             val keys = listOf(
