@@ -59,6 +59,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private val Ink = Color(0xFF101114)
 private val Teal = Color(0xFF2563EB)
@@ -142,6 +145,20 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
     val recents = remember { mutableStateListOf<String>() }
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("duckcall_preferences", android.content.Context.MODE_PRIVATE) }
+    val todayKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    var callsMadeToday by remember {
+        mutableStateOf(
+            if (preferences.getString("calls_today_date", "") == todayKey) {
+                preferences.getInt("calls_made_today", 0)
+            } else 0
+        )
+    }
+    LaunchedEffect(todayKey) {
+        if (preferences.getString("calls_today_date", "") != todayKey) {
+            callsMadeToday = 0
+            preferences.edit().putString("calls_today_date", todayKey).putInt("calls_made_today", 0).apply()
+        }
+    }
     var cellularEnabled by remember { mutableStateOf(preferences.getBoolean("cellular_enabled", true)) }
     var privateCallerId by remember { mutableStateOf(preferences.getBoolean("private_caller_id_enabled", false)) }
     var internetEnabled by remember { mutableStateOf(preferences.getBoolean("internet_enabled", true)) }
@@ -238,6 +255,11 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                                             Bundle()
                                         )
                                         recents.add(0, phoneNumber)
+                                        callsMadeToday += 1
+                                        preferences.edit()
+                                            .putString("calls_today_date", todayKey)
+                                            .putInt("calls_made_today", callsMadeToday)
+                                            .apply()
                                     } catch (_: Exception) {
                                         Toast.makeText(context, "DuckCall could not place this call", Toast.LENGTH_LONG).show()
                                     }
@@ -250,7 +272,8 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                         onPrivateCallerIdChange = { privateCallerId = it; savePreference("private_caller_id_enabled", it) },
                         internetEnabled = internetEnabled,
                         dialerLayout = dialerLayout, callButtonOrder = callButtonOrder,
-                        showDialpad = showDialpad
+                        showDialpad = showDialpad,
+                        callsMadeToday = callsMadeToday
                     )
                     "Recents" -> RecentsScreen(recents)
                     "Favorites" -> FavoritesScreen()
@@ -310,7 +333,8 @@ private fun DialerScreen(
     internetEnabled: Boolean,
     dialerLayout: String,
     callButtonOrder: String,
-    showDialpad: Boolean
+    showDialpad: Boolean,
+    callsMadeToday: Int
 ) {
     Column(
         modifier = Modifier
@@ -319,6 +343,17 @@ private fun DialerScreen(
             .padding(horizontal = 22.dp, vertical = 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("CALLS MADE TODAY", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Muted, letterSpacing = 1.1.sp)
+                Text("Outgoing cellular calls", fontSize = 11.sp, color = Muted)
+            }
+            Text(callsMadeToday.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Teal)
+        }
+        Spacer(Modifier.height(18.dp))
         Text("DIAL A NUMBER", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Muted, letterSpacing = 1.5.sp)
         Spacer(Modifier.height(12.dp))
         OutlinedTextField(
