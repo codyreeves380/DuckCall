@@ -145,6 +145,7 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
     var cellularEnabled by remember { mutableStateOf(preferences.getBoolean("cellular_enabled", true)) }
     var internetEnabled by remember { mutableStateOf(preferences.getBoolean("internet_enabled", true)) }
     var recentsEnabled by remember { mutableStateOf(preferences.getBoolean("recents_enabled", true)) }
+    var favoritesEnabled by remember { mutableStateOf(preferences.getBoolean("favorites_enabled", true)) }
     var contactsEnabled by remember { mutableStateOf(preferences.getBoolean("contacts_enabled", true)) }
     var muteControlEnabled by remember { mutableStateOf(preferences.getBoolean("mute_control_enabled", true)) }
     var speakerControlEnabled by remember { mutableStateOf(preferences.getBoolean("speaker_control_enabled", true)) }
@@ -154,8 +155,8 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
     var inCallButtonOrder by remember { mutableStateOf(preferences.getString("in_call_button_order", "mute_speaker_hold") ?: "mute_speaker_hold") }
     fun savePreference(key: String, value: Boolean) { preferences.edit().putBoolean(key, value).apply() }
     fun saveChoice(key: String, value: String) { preferences.edit().putString(key, value).apply() }
-    LaunchedEffect(selectedTab, recentsEnabled, contactsEnabled) {
-        if (selectedTab == "Recents" && !recentsEnabled || selectedTab == "Contacts" && !contactsEnabled) selectedTab = "Dialer"
+    LaunchedEffect(selectedTab, recentsEnabled, favoritesEnabled, contactsEnabled) {
+        if (selectedTab == "Recents" && !recentsEnabled || selectedTab == "Favorites" && !favoritesEnabled || selectedTab == "Contacts" && !contactsEnabled) selectedTab = "Dialer"
     }
 
     MaterialTheme(
@@ -236,12 +237,14 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                         dialerLayout = dialerLayout, callButtonOrder = callButtonOrder
                     )
                     "Recents" -> RecentsScreen(recents)
+                    "Favorites" -> FavoritesScreen()
                     "Contacts" -> ContactsScreen()
                     else -> SettingsScreen(
                         onVoipSetup = { showVoipDialog = true }, onRequestDefaultDialer = onRequestDefaultDialer,
                         cellularEnabled = cellularEnabled, onCellularChange = { cellularEnabled = it; savePreference("cellular_enabled", it) },
                         internetEnabled = internetEnabled, onInternetChange = { internetEnabled = it; savePreference("internet_enabled", it) },
                         recentsEnabled = recentsEnabled, onRecentsChange = { recentsEnabled = it; savePreference("recents_enabled", it) },
+                        favoritesEnabled = favoritesEnabled, onFavoritesChange = { favoritesEnabled = it; savePreference("favorites_enabled", it) },
                         contactsEnabled = contactsEnabled, onContactsChange = { contactsEnabled = it; savePreference("contacts_enabled", it) },
                         muteControlEnabled = muteControlEnabled, onMuteControlChange = { muteControlEnabled = it; savePreference("mute_control_enabled", it) },
                         speakerControlEnabled = speakerControlEnabled, onSpeakerControlChange = { speakerControlEnabled = it; savePreference("speaker_control_enabled", it) },
@@ -253,7 +256,7 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                 }
 
                 Spacer(Modifier.weight(1f))
-                BottomNavigation(selectedTab = selectedTab, onSelect = { selectedTab = it }, recentsEnabled = recentsEnabled, contactsEnabled = contactsEnabled)
+                BottomNavigation(selectedTab = selectedTab, onSelect = { selectedTab = it }, recentsEnabled = recentsEnabled, favoritesEnabled = favoritesEnabled, contactsEnabled = contactsEnabled)
             }
         }
 
@@ -396,6 +399,16 @@ private fun RecentsScreen(recents: List<String>) {
 }
 
 @Composable
+private fun FavoritesScreen() {
+    Column(Modifier.fillMaxWidth().padding(22.dp)) {
+        Text("Favorites", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Ink)
+        Text("Your most important people, one tap away", fontSize = 13.sp, color = Muted)
+        Spacer(Modifier.height(22.dp))
+        EmptyState("★", "No favorites yet", "Favorite contacts will appear here once Contacts is connected.")
+    }
+}
+
+@Composable
 private fun ContactsScreen() {
     Column(Modifier.fillMaxWidth().padding(22.dp)) {
         Text("Contacts", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Ink)
@@ -411,6 +424,7 @@ private fun SettingsScreen(
     cellularEnabled: Boolean, onCellularChange: (Boolean) -> Unit,
     internetEnabled: Boolean, onInternetChange: (Boolean) -> Unit,
     recentsEnabled: Boolean, onRecentsChange: (Boolean) -> Unit,
+    favoritesEnabled: Boolean, onFavoritesChange: (Boolean) -> Unit,
     contactsEnabled: Boolean, onContactsChange: (Boolean) -> Unit,
     muteControlEnabled: Boolean, onMuteControlChange: (Boolean) -> Unit,
     speakerControlEnabled: Boolean, onSpeakerControlChange: (Boolean) -> Unit,
@@ -429,6 +443,7 @@ private fun SettingsScreen(
         Button(onClick = onRequestDefaultDialer, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) { Text("Set DuckCall as default phone app") }
         Spacer(Modifier.height(18.dp))
         Text("NAVIGATION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Teal, letterSpacing = 1.2.sp)
+        ToggleSetting("Favorites", "Show the Favorites tab", favoritesEnabled, onFavoritesChange)
         ToggleSetting("Recent calls", "Show the Recents tab", recentsEnabled, onRecentsChange)
         ToggleSetting("Contacts", "Show the Contacts tab", contactsEnabled, onContactsChange)
         Spacer(Modifier.height(18.dp))
@@ -512,9 +527,10 @@ private fun EmptyState(symbol: String, title: String, detail: String) {
 }
 
 @Composable
-private fun BottomNavigation(selectedTab: String, onSelect: (String) -> Unit, recentsEnabled: Boolean, contactsEnabled: Boolean) {
+private fun BottomNavigation(selectedTab: String, onSelect: (String) -> Unit, recentsEnabled: Boolean, favoritesEnabled: Boolean, contactsEnabled: Boolean) {
     val tabs = buildList {
         add("Dialer" to "⌗")
+        if (favoritesEnabled) add("Favorites" to "★")
         if (recentsEnabled) add("Recents" to "◷")
         if (contactsEnabled) add("Contacts" to "♙")
         add("Settings" to "⚙")
