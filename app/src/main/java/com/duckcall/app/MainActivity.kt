@@ -44,7 +44,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -66,11 +66,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val Ink = Color(0xFF101114)
-private val Teal = Color(0xFF2563EB)
-private val Mint = Color(0xFFFFF2B3)
-private val Muted = Color(0xFF707784)
-private val Canvas = Color(0xFFF4F5F8)
+private val Ink = Color(0xFFFFE45C) // DuckCall yellow: primary text
+private val Teal = Color(0xFF2563EB) // DuckCall blue: actions and highlights
+private val Mint = Color(0xFF172B55) // Deep blue surface accent
+private val Muted = Color(0xFFB8B18A) // Muted warm text
+private val Canvas = Color(0xFF050608) // Near-black app background
+private val Panel = Color(0xFF11151D) // Raised dark surface
+private val DividerColor = Color(0xFF293247)
 
 class MainActivity : ComponentActivity() {
     private var incomingDialNumber by mutableStateOf("")
@@ -187,12 +189,12 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
     }
 
     MaterialTheme(
-        colorScheme = lightColorScheme(
+        colorScheme = darkColorScheme(
             primary = Teal,
             onPrimary = Color.White,
             secondary = Mint,
             background = Canvas,
-            surface = Color.White,
+            surface = Panel,
             onSurface = Ink
         )
     ) {
@@ -201,7 +203,7 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(Panel)
                         .padding(horizontal = 22.dp, vertical = 18.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -350,7 +352,7 @@ private fun DialerScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
@@ -366,7 +368,7 @@ private fun DialerScreen(
             value = number,
             onValueChange = onNumberChange,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("(555) 000-0000", color = Color.LightGray) },
+            placeholder = { Text("(555) 000-0000", color = Color(0xFF777D8A)) },
             singleLine = true,
             textStyle = MaterialTheme.typography.headlineSmall.copy(textAlign = TextAlign.Center, color = Ink),
             readOnly = true,
@@ -468,7 +470,7 @@ private fun RecentsScreen(recents: List<String>) {
                         Text("Outgoing · Cellular", fontSize = 11.sp, color = Muted)
                     }
                 }
-                Divider(color = Color(0xFFE9EEEE))
+                Divider(color = DividerColor)
             }
         }
     }
@@ -630,7 +632,7 @@ private fun BottomNavigation(selectedTab: String, onSelect: (String) -> Unit, re
         add("Settings" to "⚙")
     }
     Row(
-        modifier = Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 8.dp, vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth().background(Panel).padding(horizontal = 8.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceAround
     ) {
         tabs.forEach { (label, symbol) ->
@@ -689,7 +691,7 @@ private fun InCallScreen(showMute: Boolean, showSpeaker: Boolean, showHold: Bool
             Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
                 Button(
                     onClick = { ActiveCallStore.hangUp() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
                     shape = CircleShape,
                     modifier = Modifier.size(76.dp)
                 ) { Text("Decline", fontSize = 11.sp) }
