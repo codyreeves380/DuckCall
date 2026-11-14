@@ -25,6 +25,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
@@ -176,6 +179,7 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
     var accentColor by remember { mutableStateOf(preferences.getString("accent_color", "blue") ?: "blue") }
     var callButtonOrder by remember { mutableStateOf(preferences.getString("call_button_order", "cellular_first") ?: "cellular_first") }
     var inCallButtonOrder by remember { mutableStateOf(preferences.getString("in_call_button_order", "mute_speaker_hold") ?: "mute_speaker_hold") }
+    var showInCallDialpad by remember { mutableStateOf(preferences.getBoolean("in_call_dialpad_enabled", true)) }
     fun savePreference(key: String, value: Boolean) { preferences.edit().putBoolean(key, value).apply() }
     fun saveChoice(key: String, value: String) { preferences.edit().putString(key, value).apply() }
     LaunchedEffect(selectedTab, recentsEnabled, favoritesEnabled, contactsEnabled) {
@@ -192,7 +196,7 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
             onSurface = Ink
         )
     ) {
-        Surface(modifier = Modifier.fillMaxSize(), color = Canvas) {
+        Surface(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars), color = Canvas) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Column(
                     modifier = Modifier
@@ -224,7 +228,8 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                 if (ActiveCallStore.call != null) {
                     InCallScreen(
                         showMute = muteControlEnabled, showSpeaker = speakerControlEnabled,
-                        showHold = holdControlEnabled, buttonOrder = inCallButtonOrder
+                        showHold = holdControlEnabled, buttonOrder = inCallButtonOrder,
+                        showDialpad = showInCallDialpad, onDialpadChange = { showInCallDialpad = it }
                     )
                 } else when (selectedTab) {
                     "Dialer" -> DialerScreen(
@@ -295,7 +300,8 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                         holdControlEnabled = holdControlEnabled, onHoldControlChange = { holdControlEnabled = it; savePreference("hold_control_enabled", it) },
                         dialerLayout = dialerLayout, onDialerLayoutChange = { dialerLayout = it; saveChoice("dialer_layout", it) },
                         callButtonOrder = callButtonOrder, onCallButtonOrderChange = { callButtonOrder = it; saveChoice("call_button_order", it) },
-                        inCallButtonOrder = inCallButtonOrder, onInCallButtonOrderChange = { inCallButtonOrder = it; saveChoice("in_call_button_order", it) }
+                        inCallButtonOrder = inCallButtonOrder, onInCallButtonOrderChange = { inCallButtonOrder = it; saveChoice("in_call_button_order", it) },
+                        onBack = { selectedTab = "Dialer" }
                     )
                 }
 
@@ -363,6 +369,7 @@ private fun DialerScreen(
             placeholder = { Text("(555) 000-0000", color = Color.LightGray) },
             singleLine = true,
             textStyle = MaterialTheme.typography.headlineSmall.copy(textAlign = TextAlign.Center, color = Ink),
+            readOnly = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             trailingIcon = {
                 if (number.isNotEmpty()) {
@@ -505,9 +512,11 @@ private fun SettingsScreen(
     holdControlEnabled: Boolean, onHoldControlChange: (Boolean) -> Unit,
     dialerLayout: String, onDialerLayoutChange: (String) -> Unit,
     callButtonOrder: String, onCallButtonOrderChange: (String) -> Unit,
-    inCallButtonOrder: String, onInCallButtonOrderChange: (String) -> Unit
+    inCallButtonOrder: String, onInCallButtonOrderChange: (String) -> Unit,
+    onBack: () -> Unit
 ) {
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 16.dp)) {
+        TextButton(onClick = onBack, modifier = Modifier.align(Alignment.Start)) { Text("← Back", color = Teal, fontWeight = FontWeight.SemiBold) }
         Text("Settings", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Ink)
         Text("Control what appears and how DuckCall works", fontSize = 13.sp, color = Muted)
         Spacer(Modifier.height(18.dp))
@@ -639,7 +648,7 @@ private fun BottomNavigation(selectedTab: String, onSelect: (String) -> Unit, re
 
 
 @Composable
-private fun InCallScreen(showMute: Boolean, showSpeaker: Boolean, showHold: Boolean, buttonOrder: String) {
+private fun InCallScreen(showMute: Boolean, showSpeaker: Boolean, showHold: Boolean, buttonOrder: String, showDialpad: Boolean, onDialpadChange: (Boolean) -> Unit) {
     val callState = ActiveCallStore.state
     val incoming = callState == android.telecom.Call.STATE_RINGING
     val held = callState == android.telecom.Call.STATE_HOLDING
@@ -714,7 +723,20 @@ private fun InCallScreen(showMute: Boolean, showSpeaker: Boolean, showHold: Bool
                     muteButton(); speakerButton(); holdButton()
                 }
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(18.dp))
+            OutlinedButton(onClick = { onDialpadChange(!showDialpad) }) { Text(if (showDialpad) "Hide keypad" else "Keypad") }
+            if (showDialpad) {
+                Spacer(Modifier.height(12.dp))
+                val dtmfKeys = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#")
+                dtmfKeys.chunked(3).forEach { keyRow ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        keyRow.forEach { digit ->
+                            OutlinedButton(onClick = { ActiveCallStore.sendDtmfDigit(digit.first()) }, modifier = Modifier.size(64.dp), shape = CircleShape) { Text(digit, fontSize = 20.sp, color = Ink) }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(18.dp))
             Button(
                 onClick = { ActiveCallStore.hangUp() },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E)),
