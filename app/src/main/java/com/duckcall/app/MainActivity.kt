@@ -229,7 +229,7 @@ private fun DuckCallApp(initialNumber: String, onRequestDefaultDialer: () -> Uni
                     InCallScreen(
                         showMute = muteControlEnabled, showSpeaker = speakerControlEnabled,
                         showHold = holdControlEnabled, buttonOrder = inCallButtonOrder,
-                        showDialpad = showInCallDialpad, onDialpadChange = { showInCallDialpad = it }
+                        showDialpad = showInCallDialpad, onDialpadChange = { showInCallDialpad = it; savePreference("in_call_dialpad_enabled", it) }
                     )
                 } else when (selectedTab) {
                     "Dialer" -> DialerScreen(
