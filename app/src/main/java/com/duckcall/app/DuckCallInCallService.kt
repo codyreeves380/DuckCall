@@ -1,12 +1,14 @@
 package com.duckcall.app
 
-import android.app.InCallService
+import android.telecom.InCallService
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.VideoProfile
@@ -78,6 +80,15 @@ object ActiveCallStore {
     fun hangUp() { call?.disconnect() }
     fun hold() { call?.hold() }
     fun unhold() { call?.unhold() }
+
+    fun sendDtmfDigit(digit: Char) {
+        if (digit !in "0123456789*#") return
+        val activeCall = call ?: return
+        activeCall.playDtmfTone(digit)
+        Handler(Looper.getMainLooper()).postDelayed({
+            runCatching { activeCall.stopDtmfTone() }
+        }, 150L)
+    }
 
     fun toggleMute() {
         muted = !muted
