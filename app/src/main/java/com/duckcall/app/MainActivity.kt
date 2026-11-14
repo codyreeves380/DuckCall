@@ -663,7 +663,7 @@ private fun InCallScreen(showMute: Boolean, showSpeaker: Boolean, showHold: Bool
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(Color.White).padding(28.dp),
+        modifier = Modifier.fillMaxSize().background(Color.White).verticalScroll(rememberScrollState()).padding(28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
