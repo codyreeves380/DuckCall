@@ -14,6 +14,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -362,20 +363,36 @@ private fun DialerScreen(
             Text(callsMadeToday.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Teal)
         }
         Spacer(Modifier.height(18.dp))
-        Text("DIAL A NUMBER", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Muted, letterSpacing = 1.5.sp)
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Keypad", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ink)
+                Text("Enter a number to call", fontSize = 13.sp, color = Muted)
+            }
+            val context = LocalContext.current
+            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            TextButton(onClick = {
+                val pasted = clipboard.primaryClip?.takeIf { it.itemCount > 0 }
+                    ?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+                val phoneText = pasted.filter { it.isDigit() || it in "+*#(),; -" }
+                if (phoneText.isNotBlank()) onNumberChange(phoneText)
+                else Toast.makeText(context, "No phone number found on clipboard", Toast.LENGTH_SHORT).show()
+            }) {
+                Text("Paste", color = Teal, fontWeight = FontWeight.SemiBold)
+            }
+        }
         Spacer(Modifier.height(12.dp))
         OutlinedTextField(
             value = number,
             onValueChange = onNumberChange,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("(555) 000-0000", color = Color(0xFF777D8A)) },
+            placeholder = { Text("Enter phone number", color = Muted) },
             singleLine = true,
             textStyle = MaterialTheme.typography.headlineSmall.copy(textAlign = TextAlign.Center, color = Ink),
             readOnly = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             trailingIcon = {
                 if (number.isNotEmpty()) {
-                    TextButton(onClick = { onNumberChange(number.dropLast(1)) }) { Text("⌫", fontSize = 20.sp) }
+                    TextButton(onClick = { onNumberChange(number.dropLast(1)) }) { Text("⌫", fontSize = 20.sp, color = Teal) }
                 }
             }
         )
@@ -407,7 +424,8 @@ private fun DialerScreen(
                                     width = when (dialerLayout) { "compact" -> 72.dp; "large" -> 92.dp; else -> 82.dp },
                                     height = when (dialerLayout) { "compact" -> 56.dp; "large" -> 74.dp; else -> 65.dp }
                                 )
-                                .background(Color.White, RoundedCornerShape(18.dp))
+                                .background(Panel, CircleShape)
+                                .border(1.dp, DividerColor, CircleShape)
                                 .clickable { onNumberChange(number + digit) },
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
@@ -577,7 +595,7 @@ private fun ToggleSetting(title: String, detail: String, checked: Boolean, onChe
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
-    Divider(color = Color(0xFFE9EEEE))
+    Divider(color = DividerColor)
 }
 
 @Composable
@@ -665,7 +683,7 @@ private fun InCallScreen(showMute: Boolean, showSpeaker: Boolean, showHold: Bool
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(Color.White).verticalScroll(rememberScrollState()).padding(28.dp),
+        modifier = Modifier.fillMaxSize().background(Canvas).verticalScroll(rememberScrollState()).padding(28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
